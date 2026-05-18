@@ -105,19 +105,26 @@
 
   <!-- Firebase SDK -->
   <script type="module">
-    const { initializeApp }                    = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
-    const { getDatabase, ref, push, set }      = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+    const { initializeApp }               = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const { getDatabase, ref, push, set } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
 
-    async function initFirebase() {
-      try {
-        const cfg = JSON.parse(localStorage.getItem('adidas_fb_config') || 'null');
-        if (!cfg || !cfg.apiKey || cfg.apiKey.includes('YOUR_')) return null;
-        const app = initializeApp(cfg);
-        return getDatabase(app);
-      } catch(e) { return null; }
+    // ✏️ PASTE YOUR FIREBASE CONFIG HERE
+    const firebaseConfig = {
+      apiKey:            "YOUR_API_KEY",
+      authDomain:        "YOUR_PROJECT.firebaseapp.com",
+      databaseURL:       "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+      projectId:         "YOUR_PROJECT_ID",
+      storageBucket:     "YOUR_PROJECT_ID.appspot.com",
+      appId:             "YOUR_APP_ID"
+    };
+
+    let db = null;
+    try {
+      const app = initializeApp(firebaseConfig);
+      db = getDatabase(app);
+    } catch(e) {
+      console.warn('Firebase init failed:', e);
     }
-
-    const db = await initFirebase();
 
     const params = new URLSearchParams(window.location.search);
     const name   = params.get("name") || "Member";
