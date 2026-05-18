@@ -139,7 +139,7 @@
         await set(newRef, {
           name:      name,
           id:        id,
-          timestamp: new Date().toISOString(),
+          timestamp: new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T'),
         });
       } catch(e) {
         // Silent fail — user still gets redirected to adiClub
