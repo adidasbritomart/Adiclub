@@ -66,6 +66,7 @@
       background: #fff; color: #000; text-decoration: none; border-radius: 3px;
       position: relative; overflow: hidden;
       transition: transform 0.15s ease, box-shadow 0.15s ease; cursor: pointer;
+      border: none; width: auto;
     }
     .btn::after {
       content: ''; position: absolute; inset: 0; background: #a0ff00;
@@ -75,7 +76,9 @@
     .btn:hover::after { transform: scaleX(1); }
     .btn:hover { color: #000; box-shadow: 0 0 40px rgba(160,255,0,0.3); transform: translateY(-2px); }
     .btn span { position: relative; z-index: 1; }
-    .plain-link { display: block; margin-top: 16px; color: #888; font-size: 13px; text-decoration: underline; letter-spacing: 0.05em; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn:disabled::after { display: none; }
+    .plain-link { display: block; margin-top: 16px; color: #888; font-size: 13px; text-decoration: underline; letter-spacing: 0.05em; cursor: pointer; background: none; border: none; font-family: 'Inter', sans-serif; }
     .plain-link:hover { color: #fff; }
     .fine-print {
       margin-top: 20px; font-size: 11px; color: #444; letter-spacing: 0.05em;
@@ -95,26 +98,28 @@
     <p class="greeting">Welcome from <em id="nameDisplay">Member</em></p>
     <p>Earn adiClub points with every purchase and redeem them for member exclusives, limited drops, and personalised offers.</p>
     <div class="btn-wrap">
-      <a href="https://www.adidas.co.nz/adiclub" target="_blank" rel="noopener" class="btn" id="joinBtn">
-        <span>JOIN FOR FREE</span>
-      </a>
-      <a href="https://www.adidas.co.nz/adiclub" target="_blank" rel="noopener" class="plain-link">Visit adiClub</a>
+      <!-- Changed to a button so we fully control navigation timing -->
+      <button class="btn" id="joinBtn">
+        <span id="joinBtnText">JOIN FOR FREE</span>
+      </button>
+      <button class="plain-link" id="plainLink">Visit adiClub</button>
     </div>
     <p class="fine-print">By joining you agree to the adiClub Terms &amp; Conditions</p>
   </div>
 
-  <!-- Firebase SDK -->
   <script type="module">
-    const { initializeApp }               = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
-    const { getDatabase, ref, push, set } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+    import { initializeApp }               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-    // ✏️ PASTE YOUR FIREBASE CONFIG HERE
+    const ADICLUB_URL = "https://www.adidas.co.nz/adiclub";
+
     const firebaseConfig = {
       apiKey:            "AIzaSyDvbS83az6cjeIKkCh16Ic8Pr50I54fKv4",
       authDomain:        "adidas-training-mtd.firebaseapp.com",
       databaseURL:       "https://adidas-training-mtd-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId:         "adidas-training-mtd",
       storageBucket:     "adidas-training-mtd.firebasestorage.app",
+      messagingSenderId: "208658627122",
       appId:             "1:208658627122:web:8dd72cb4576e26b1735a2b"
     };
 
@@ -126,26 +131,43 @@
       console.warn('Firebase init failed:', e);
     }
 
+    // Read name + id from URL params e.g. ?name=David&id=12345
     const params = new URLSearchParams(window.location.search);
     const name   = params.get("name") || "Member";
     const id     = params.get("id")   || "";
 
     document.getElementById("nameDisplay").textContent = name;
 
-    document.getElementById("joinBtn").addEventListener("click", async function() {
-      if (!db) return; // silent fail if Firebase not configured
-      try {
-        const newRef = push(ref(db, 'adiclub'));
-        await set(newRef, {
-          name:      name,
-          id:        id,
-          timestamp: new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T'),
-        });
-      } catch(e) {
-        // Silent fail — user still gets redirected to adiClub
-        console.warn('adiClub log failed:', e);
+    // Saves the signup to Firebase then redirects
+    async function logAndRedirect() {
+      const btn      = document.getElementById("joinBtn");
+      const btnText  = document.getElementById("joinBtnText");
+
+      btn.disabled  = true;
+      btnText.textContent = "LOGGING…";
+
+      if (db) {
+        try {
+          const newRef = push(ref(db, 'adiclub'));
+          await set(newRef, {
+            name:      name,
+            id:        id,
+            timestamp: new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T'),
+          });
+        } catch(e) {
+          // Log the error but still redirect — don't block the user
+          console.warn('adiClub log failed:', e);
+        }
       }
-    });
+
+      // Redirect after save (or after failure)
+      window.location.href = ADICLUB_URL;
+    }
+
+    document.getElementById("joinBtn").addEventListener("click", logAndRedirect);
+
+    // Plain link also logs before redirecting
+    document.getElementById("plainLink").addEventListener("click", logAndRedirect);
   </script>
 </body>
 </html>
