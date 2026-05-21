@@ -107,72 +107,44 @@
     <p class="fine-print">By joining you agree to the adiClub Terms &amp; Conditions</p>
   </div>
 
-  <script type="module">
-    import { initializeApp }               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  <script>
+    const ADICLUB_URL  = "https://www.adidas.co.nz/adiclub";
+    const FIREBASE_DB  = "https://adidas-training-mtd-default-rtdb.asia-southeast1.firebasedatabase.app";
 
-    const ADICLUB_URL = "https://www.adidas.co.nz/adiclub";
-
-    const firebaseConfig = {
-      apiKey:            "AIzaSyDvbS83az6cjeIKkCh16Ic8Pr50I54fKv4",
-      authDomain:        "adidas-training-mtd.firebaseapp.com",
-      databaseURL:       "https://adidas-training-mtd-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId:         "adidas-training-mtd",
-      storageBucket:     "adidas-training-mtd.firebasestorage.app",
-      messagingSenderId: "208658627122",
-      appId:             "1:208658627122:web:8dd72cb4576e26b1735a2b"
-    };
-
-    let db = null;
-    try {
-      const app = initializeApp(firebaseConfig);
-      db = getDatabase(app);
-    } catch(e) {
-      console.warn('Firebase init failed:', e);
-    }
-
-    // Read name + id from URL params e.g. ?name=David&id=01
     const params = new URLSearchParams(window.location.search);
     const name   = params.get("name") || "Member";
     const id     = params.get("id")   || "";
 
     document.getElementById("nameDisplay").textContent = name;
 
-    // ── Log on PAGE LOAD (not on button click) ──
-    // Mobile browsers kill network requests when navigating away.
-    // Logging immediately when the page loads gives Firebase maximum
-    // time to complete the write before the user taps anything.
-    let logPromise = null;
-    if (db && name !== "Member") {
-      logPromise = (async () => {
-        try {
-          const newRef = push(ref(db, 'adiclub'));
-          await set(newRef, {
-            name:      name,
-            id:        id,
-            timestamp: new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T'),
-          });
-        } catch(e) {
-          console.warn('adiClub log failed:', e);
-        }
-      })();
+    // ── Plain fetch() with keepalive:true ──
+    // The Firebase Realtime Database REST API accepts a simple POST to
+    // /path.json and returns a key — no SDK or auth needed when rules
+    // allow public writes (which yours do).
+    // keepalive:true tells the browser to complete the request even after
+    // the page navigates away — this is the key fix for mobile Safari/Chrome.
+    function logSignup() {
+      if (name === "Member") return;
+      const timestamp = new Date().toLocaleString('sv-SE', { timeZone: 'Pacific/Auckland' }).replace(' ', 'T');
+      fetch(FIREBASE_DB + '/adiclub.json', {
+        method:    'POST',
+        headers:   { 'Content-Type': 'application/json' },
+        body:      JSON.stringify({ name, id, timestamp }),
+        keepalive: true   // survives navigation on mobile
+      }).catch(e => console.warn('Log failed:', e));
     }
 
-    // On button tap: wait for the log to finish (it's probably already done),
-    // then redirect. Add a 600ms safety net in case it's still in flight.
     async function logAndRedirect() {
       const btn     = document.getElementById("joinBtn");
       const btnText = document.getElementById("joinBtnText");
       btn.disabled  = true;
       btnText.textContent = "OPENING…";
 
-      try {
-        // Race: either the log finishes, or 600ms passes — whichever first
-        await Promise.race([
-          logPromise || Promise.resolve(),
-          new Promise(r => setTimeout(r, 600))
-        ]);
-      } catch(e) {}
+      // Fire with keepalive — browser will complete it even after navigation
+      logSignup();
+
+      // Brief pause to let the fetch dispatch before we navigate
+      await new Promise(r => setTimeout(r, 400));
 
       window.location.href = ADICLUB_URL;
     }
